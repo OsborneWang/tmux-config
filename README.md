@@ -15,6 +15,7 @@ tmux:   3.6 实测（>= 3.3 可用，推荐 >= 3.5）
 tmux-config/
 ├── tmux.conf                 # 主配置，软链到 ~/.tmux.conf
 ├── install.sh                # 安装脚本（软链 / 复制 / dry-run）
+├── check.sh                  # 本地自检（语法 / 解析 / 绑定核对）
 └── bin/                      # 被配置调用的辅助脚本，软链到 ~/.local/bin
     ├── clip-path             # 插入第 N 新的图片路径（prefix v / V）
     ├── clip-pick             # fzf 弹窗挑图（prefix y）
@@ -42,6 +43,16 @@ cd tmux-config
 - `~/.local/bin/<脚本>` → 仓库里的 `bin/<脚本>`（确认 `~/.local/bin` 在 `PATH` 里）
 
 脚本依赖：`fzf`、`chafa`、`python3`、以及 `ncurses-term`（提供 `tmux-256color` terminfo）。
+
+### 改完先自检
+
+```bash
+./check.sh
+```
+
+依次检查：脚本语法（sh/bash/python）、shellcheck（装了才跑）、
+`tmux.conf` 能否被一个干净的 server 完整解析、以及 `hjkl / Tab / v / V / y`
+这几条关键绑定是否真的生效。全通过退出码为 0，可当作提交前的门禁。
 
 ### 首次生效需要重连一次
 
