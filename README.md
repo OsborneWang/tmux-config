@@ -163,3 +163,12 @@ macOS 侧的 `clipsync` 不在本仓库内。
 mv ~/.tmux.conf.bak.20261028153000 ~/.tmux.conf
 tmux source-file ~/.tmux.conf
 ```
+
+（若已按默认方式装了软链，更直接的回滚是：`rm ~/.tmux.conf`，再把仓库 `tmux.conf` 拷回去。）
+
+## 许可
+
+[MIT](LICENSE)。
+
+需要提醒的是：这份配置是围绕个人工作习惯调出来的（Ghostty/kitty + SSH + 中文注释），
+照搬未必舒服。fork 后建议先读 `tmux.conf` 里的注释再动手改 —— 里面的“为什么”比“是什么”更有参考价值。
