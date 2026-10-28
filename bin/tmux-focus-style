@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+window_target="${1:-}"
+if [ -z "$window_target" ]; then
+  window_target="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
+fi
+
+if [ -z "$window_target" ]; then
+  exit 0
+fi
+
+active_style="$(tmux show-option -gvq @focus-active-pane-style 2>/dev/null || true)"
+inactive_style="$(tmux show-option -gvq @focus-inactive-pane-style 2>/dev/null || true)"
+
+active_style="${active_style:-fg=default,bg=default,nodim}"
+inactive_style="${inactive_style:-fg=colour245,bg=colour235,dim}"
+
+while read -r pane_id is_active; do
+  if [ "$is_active" = "1" ]; then
+    tmux set-option -pt "$pane_id" window-style "$active_style" >/dev/null || true
+    tmux set-option -pt "$pane_id" window-active-style "$active_style" >/dev/null || true
+  else
+    tmux set-option -pt "$pane_id" window-style "$inactive_style" >/dev/null || true
+    tmux set-option -pt "$pane_id" window-active-style "$active_style" >/dev/null || true
+  fi
+done < <(tmux list-panes -t "$window_target" -F '#{pane_id} #{?pane_active,1,0}' 2>/dev/null || true)

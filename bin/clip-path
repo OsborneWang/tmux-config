@@ -1,0 +1,42 @@
+#!/bin/sh
+# ==============================================================================
+# clip-path —— 把已同步图片的绝对路径键入当前 tmux 窗格
+#
+# 用途：在 pi 提示符下按快捷键，直接插入图片路径，让 AI 读取这张图
+# 用法：clip-path      插入最新一张（第 1 新）
+#       clip-path 2    插入第 2 新的图片，依次类推
+# 依赖：macOS 端 clipsync 已把图片推送到 ~/.clip/inbox/（文件名带时间戳）
+# ==============================================================================
+set -u
+
+dir="$HOME/.clip/inbox"
+n="${1:-1}"
+
+# 序号非法时退回 1
+if ! printf '%s' "$n" | grep -qE '^[0-9]+$'; then
+	n=1
+fi
+
+# 按修改时间倒序取第 n 张；rsync 保留了 macOS 侧的 mtime，顺序与复制顺序一致
+file=$(ls -1t "$dir"/*.png 2>/dev/null | sed -n "${n}p")
+
+# 兜底：inbox 为空或序号越界时，取便捷指针文件
+if [ -z "$file" ] || [ ! -f "$file" ]; then
+	if [ "$n" = "1" ] && [ -f "$HOME/.clip/latest.png" ]; then
+		file="$HOME/.clip/latest.png"
+	fi
+fi
+
+if [ -z "$file" ] || [ ! -f "$file" ]; then
+	tmux display-message "没有可用的图片：请先在 macOS 上截图或复制，等待同步完成" 2>/dev/null || true
+	exit 0
+fi
+
+# 允许指定目标窗格（供弹窗选择器调用），未指定时作用于当前窗格
+if [ -n "${CLIP_TARGET:-}" ]; then
+	tmux send-keys -t "$CLIP_TARGET" -l "$file"
+else
+	tmux send-keys -l "$file"
+fi
+
+tmux display-message "已插入第${n}新图片：$(basename "$file")（同步于 $(date -r "$file" "+%H:%M:%S")）" 2>/dev/null || true

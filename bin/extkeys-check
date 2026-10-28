@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""
+extkeys-check —— 验证 tmux 扩展键链路是否真的通了
+
+原理：模拟 pi 的行为，先向外层终端发出 modifyOtherKeys mode 2 请求
+（ESC[>4;2m），然后 raw 模式读取按键字节并判定：
+
+  普通 Enter   -> 0d                          (CR)
+  Shift+Enter  -> 1b 5b 31 33 3b 32 75        (CSI-u: ESC[13;2u)  ✅ 链路通
+               -> 0d                          ❌ 修饰键丢失
+
+用法：在 tmux 窗格里运行 extkeys-check，按一下 Shift+Enter 即可（按 q 退出）。
+      结果同时写入 /tmp/extkeys-check.log
+"""
+import os, sys, tty, termios, time
+
+LOG = "/tmp/extkeys-check.log"
+ESC = b"\x1b[>4;2m"                 # 请求扩展键，与 pi 相同
+SHIFT_ENTER = b"\x1b[13;2u"         # CSI-u 的 Shift+Enter
+TIMEOUT = 45
+
+
+def out(s):
+    os.write(sys.stdout.fileno(), s.encode() if isinstance(s, str) else s)
+
+
+def main():
+    with open(LOG, "w") as f:
+        f.write(f"TERM={os.environ.get('TERM')} TMUX={os.environ.get('TMUX')}\n")
+
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+
+    out("\r\n=== tmux 扩展键链路检测 ===\r\n")
+    out(f"TERM={os.environ.get('TERM')}\r\n")
+    mode = os.popen("tmux display-message -p '#{pane_key_mode}' 2>/dev/null").read().strip()
+    out(f"pane_key_mode(按键前)={mode or '(未知)'}\r\n")
+
+    # 请求扩展键 —— tmux 收到后才会把修饰键信息转发给本程序
+    out(ESC)
+    sys.stdout.flush()
+    time.sleep(0.3)
+    mode2 = os.popen("tmux display-message -p '#{pane_key_mode}' 2>/dev/null").read().strip()
+    out(f"pane_key_mode(按键前·请求后)={mode2 or '(未知)'}\r\n")
+
+    out("\r\n请按一下 Shift+Enter （按 q 退出）\r\n")
+
+    buf = b""
+    try:
+        tty.setraw(fd)
+        deadline = time.time() + TIMEOUT
+        while time.time() < deadline:
+            chunk = os.read(fd, 64)
+            if not chunk:
+                continue
+            buf += chunk
+            with open(LOG, "a") as f:
+                f.write(f"raw: {chunk!r}\n")
+            out(f"  收到: {chunk!r}\r\n")
+            if chunk == b"q" or SHIFT_ENTER in buf:
+                break
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+    out("\r\n--- 判定 ---\r\n")
+    if SHIFT_ENTER in buf:
+        verdict = "PASS"
+        out("  [PASS] Shift+Enter => ESC[13;2u，扩展键链路已打通\r\n")
+    elif b"\r" in buf:
+        verdict = "FAIL"
+        out("  [FAIL] 只收到普通 CR(0x0d)，修饰键信息丢失\r\n")
+        out("         => tmux 未向外层终端发请求，或终端未响应\r\n")
+    else:
+        verdict = "UNKNOWN"
+        out(f"  未识别到按键，原始字节: {buf!r}\r\n")
+
+    with open(LOG, "a") as f:
+        f.write(f"VERDICT: {verdict}\nFINAL_BYTES: {buf!r}\n")
+    out(f"\r\n完整字节: {buf!r}\r\n日志: {LOG}\r\n")
+
+
+if __name__ == "__main__":
+    main()

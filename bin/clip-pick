@@ -1,0 +1,57 @@
+#!/bin/sh
+# ==============================================================================
+# clip-pick —— 在 tmux 弹窗中挑选已同步图片，并把路径键入原窗格
+#
+# 调用：由 tmux 绑定 Ctrl+b y 通过 display-popup 唤起
+# 操作：回车插入当前图片路径；Tab 多选可一次插入多张；Esc 取消
+# 说明：预览使用 chafa 字符画。tmux 内的终端无法自证支持 Kitty 图形协议，
+#       因此这里不渲染真图；如需看真图，用 Ctrl+b v/V 取路径后用 yazi 打开。
+# 依赖：fzf、chafa（均已安装）
+# ==============================================================================
+set -u
+
+dir="$HOME/.clip/inbox"
+target="${CLIP_TARGET:-}"
+
+if [ ! -d "$dir" ]; then
+	tmux display-message "还没有图片目录：请先在 macOS 上复制一张图" 2>/dev/null || true
+	exit 0
+fi
+
+# 只显示时间戳文件名，按同步时间从新到旧排列
+list=$(ls -1t "$dir"/*.png 2>/dev/null | while read -r f; do basename "$f"; done)
+
+if [ -z "$list" ]; then
+	tmux display-message "还没有图片：请先在 macOS 上截图或复制，等待同步完成" 2>/dev/null || true
+	exit 0
+fi
+
+# CLIP_PICK_SEL 用于自动化测试，正常使用时不设置
+sel="${CLIP_PICK_SEL:-}"
+
+if [ -z "$sel" ]; then
+	sel=$(printf '%s\n' "$list" | fzf --height=100% --reverse --multi \
+		--prompt="选择图片 > " \
+		--header="回车插入路径 / Tab 多选 / Esc 取消" \
+		--preview="chafa --animate off --symbols=block --colors=full --size=\${FZF_PREVIEW_COLUMNS}x\${FZF_PREVIEW_LINES} \"$dir\"/{}" \
+		--preview-window="right:55%")
+fi
+
+# Esc 取消时什么都不插入
+[ -n "$sel" ] || exit 0
+
+# 多选结果拼成空格分隔的绝对路径
+paths=""
+for name in $sel; do
+	p="$dir/$name"
+	[ -f "$p" ] || continue
+	paths="${paths:+$paths }$p"
+done
+
+[ -n "$paths" ] || exit 0
+
+if [ -n "$target" ]; then
+	tmux send-keys -t "$target" -l "$paths"
+else
+	tmux send-keys -l "$paths"
+fi

@@ -1,0 +1,51 @@
+#!/bin/sh
+# ==============================================================================
+# clip-show —— 在 tmux 弹窗中用 Kitty 图形协议高清显示一张图片
+#
+# 说明：走 chafa --format=kitty + tmux-image 包装 DCS 透传，
+#       由外层终端（Ghostty）真正渲染像素图，而非字符画。
+# 用法：clip-show            显示最新一张
+#       clip-show 路径        显示指定图片
+# 依赖：chafa、python3，tmux 需开启 allow-passthrough on
+# 实测状态：Ghostty + tmux 下未生效（弹窗与独立窗口均不出图），保留备查
+# ==============================================================================
+set -u
+
+# 确保能找到同目录下的 tmux-image（非交互 shell 的 PATH 未必包含 ~/.local/bin）
+PATH="$HOME/.local/bin:$PATH"
+export PATH
+
+file="${1:-}"
+
+if [ -z "$file" ]; then
+	file=$(ls -1t "$HOME"/.clip/inbox/*.png 2>/dev/null | head -1)
+elif [ ! -f "$file" ] && [ -f "$HOME/.clip/inbox/$file" ]; then
+	# 允许只传文件名，由本脚本自行拼出完整路径
+	file="$HOME/.clip/inbox/$file"
+fi
+
+if [ -z "$file" ] || [ ! -f "$file" ]; then
+	printf '没有可显示的图片\n'
+	sleep 1
+	exit 0
+fi
+
+# 按弹窗实际尺寸计算渲染格数，留出边距与底部提示行
+cols=$(tput cols 2>/dev/null || echo 80)
+lines=$(tput lines 2>/dev/null || echo 24)
+w=$((cols - 4))
+h=$((lines - 4))
+[ "$w" -lt 10 ] && w=10
+[ "$h" -lt 5 ] && h=5
+
+# 上限：Kitty 协议传的是原始像素，尺寸越大字节数按平方增长
+# 120x40 约 3.5MB，已是局域网下肉眼够用的折中值，可用 CLIP_SHOW_MAX 调整
+max_w="${CLIP_SHOW_MAX_W:-120}"
+max_h="${CLIP_SHOW_MAX_H:-40}"
+[ "$w" -gt "$max_w" ] && w="$max_w"
+[ "$h" -gt "$max_h" ] && h="$max_h"
+
+chafa --format=kitty --animate off --size="${w}x${h}" "$file" | tmux-image
+
+printf '\n%s   按回车关闭\n' "$(basename "$file")"
+read -r _ || true

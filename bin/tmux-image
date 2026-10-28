@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+# ==============================================================================
+# tmux-image —— 把 Kitty 图形协议的 APC 序列包装成 tmux 可透传的 DCS 序列
+#
+# 背景：chafa --format=kitty 输出的是直接给终端的 APC 序列（ESC _ G ... ESC \），
+#       tmux 会吞掉它；必须包成 ESC Ptmux; ... ESC \ 且内部 ESC 需双写，
+#       才能经 allow-passthrough on 送到外层终端（Ghostty）。
+# 用法：chafa --format=kitty --size=WxH 图片 | tmux-image
+# 实测状态：Ghostty + tmux 下未生效（弹窗与独立窗口均不出图），保留备查
+# ==============================================================================
+import sys
+
+APC_START = b"\x1b_G"
+ST_START = b"\x1bPtmux;"
+
+
+def main() -> int:
+    data = sys.stdin.buffer.read()
+    out = bytearray()
+    i = 0
+
+    while True:
+        start = data.find(APC_START, i)
+        if start < 0:
+            out += data[i:]
+            break
+
+        out += data[i:start]
+
+        end = data.find(b"\x1b\\", start)
+        if end < 0:
+            # 序列不完整时原样输出，避免丢失内容
+            out += data[start:]
+            break
+
+        apc = data[start:end + 2]
+        # tmux 透传要求内部的每个 ESC 双写
+        inner = apc.replace(b"\x1b", b"\x1b\x1b")
+        out += ST_START + inner + b"\x1b\\"
+        i = end + 2
+
+    sys.stdout.buffer.write(bytes(out))
+    sys.stdout.buffer.flush()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

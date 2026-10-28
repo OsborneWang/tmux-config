@@ -1,0 +1,18 @@
+#!/bin/sh
+# ==============================================================================
+# clip-clean —— 清理超期图片
+#
+# 用途：macOS 端 clipsync 未运行时（如电脑关机）也能按期清理，
+#       与 clipsync 内的清理规则保持一致，默认存活 24 小时。
+# 调度：由 crontab 每 30 分钟执行一次
+# ==============================================================================
+set -u
+
+KEEP_MINUTES="${CLIP_KEEP_MINUTES:-1440}"
+
+find "$HOME/.clip/inbox" -type f -name "*.png" -mmin "+$KEEP_MINUTES" -delete 2>/dev/null
+
+# latest.png 同样按时效清理，避免指向已过期的图片
+if [ -f "$HOME/.clip/latest.png" ] && [ -n "$(find "$HOME/.clip/latest.png" -mmin "+$KEEP_MINUTES" 2>/dev/null)" ]; then
+	rm -f "$HOME/.clip/latest.png"
+fi
