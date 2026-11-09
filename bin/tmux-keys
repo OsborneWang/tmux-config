@@ -90,5 +90,19 @@ if [ -r "$CONF" ]; then
 	fi
 fi
 
-printf '\n%s  按任意键关闭%s' "$DIM" "$R"
-read -rsn1 _ || true
+printf '\n  %s[f]%s %s完整列表（tmux list-keys）%s   %s[其他键]%s %s关闭%s' \
+	"$CYAN" "$R" "$DIM" "$R" "$CYAN" "$R" "$DIM" "$R"
+k=""
+read -rsn1 k || true
+
+case "${k:-}" in
+f | F)
+	PAGER_BIN=$(command -v less || echo /usr/bin/less)   # 别叫 LESS：那会覆盖 less 自己的选项变量
+	{
+		printf '%s  完整键位 —— tmux list-keys（含 tmux 出厂默认）%s\n' "$BOLD" "$R"
+		printf '%s  q 退出%s\n\n' "$DIM" "$R"
+		"$T" list-keys 2>/dev/null
+	} | "$PAGER_BIN" -R
+	;;
+esac
+printf '\n'
