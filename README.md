@@ -82,7 +82,7 @@ extkeys-check               # 新窗格里跑，按一下 Shift+Enter，看是�
 | `prefix h/j/k/l` | 切到左/下/上/右窗格 | 支持连按（`-r`），与默认方向键并存 |
 | `prefix Tab` | 回到上一个窗口 | 原 `prefix l` 的位置，因 `l` 被切窗格占用 |
 | `prefix Enter` | 竖向拆分窗格 | 继承当前工作目录 |
-| `prefix =` | 主窗格收窄到 20% + 聚焦右上 | 配合 `main-vertical` 布局 |
+| `prefix =` | 主窗格收窄到 26% + 聚焦右上 | 配合 `main-vertical` 布局 |
 | `prefix -` | 主窗格放宽到 80% + 聚焦主窗格 | 同上 |
 | `prefix v` | 插入最新一张图片路径 | 用于让 AI 读图 |
 | `prefix V` | 插入第 2 新的图片路径 | 补引用上一张 |
@@ -95,7 +95,7 @@ extkeys-check               # 新窗格里跑，按一下 Shift+Enter，看是�
 | 键 | 默认行为 | 现在 |
 |---|---|---|
 | `prefix l` | `last-window` | 切右侧窗格（`last-window` 已挪到 `prefix Tab`） |
-| `prefix =` | `choose-buffer -Z` | 主窗格宽度 20%（需要选择粘贴缓冲区时用 `prefix :choose-buffer`） |
+| `prefix =` | `choose-buffer -Z` | 主窗格宽度 26%（需要选择粘贴缓冲区时用 `prefix :choose-buffer`） |
 | `prefix -` | `delete-buffer` | 主窗格宽度 80%（同上，`prefix :delete-buffer`） |
 | copy-mode-vi `Enter` | `copy-pipe-and-cancel` | `copy-selection-and-cancel` |
 
@@ -114,7 +114,7 @@ extkeys-check               # 新窗格里跑，按一下 Shift+Enter，看是�
 | `mouse` | `on` | 拖选由 tmux 接管，松手即写入系统剪贴板（需要终端原生选择时按住 Shift 拖） |
 | `history-limit` | `50000` | 默认 2000 行，长会话回溯不够 |
 | `focus-events` | `on` | 供 nvim、pi 感知失焦/聚焦 |
-| `main-pane-width` | `20%` | 配合 `after-split-window` 钩子强制 `main-vertical` 布局 |
+| `main-pane-width` | `26%` | 配合 `after-split-window` 钩子强制 `main-vertical` 布局 |
 
 **刻意没有写**（这些值 tmux 3.5/3.6 已与所需一致，写出来只是噪音，配置里以注释形式留了说明）：
 `default-terminal`（3.5+ 默认 `tmux-256color`）、`escape-time`（3.6 默认 10ms）、`mode-keys`（3.6 默认 `vi`）。
