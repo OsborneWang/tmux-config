@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# tmux-keys —— 快捷键速查（prefix ?）
+#
+# 内容来自下面的清单；每次打开都会扫一遍 tmux.conf，把清单里没有的
+# bind 单独列出来，防止配置改了而这里忘了同步。
+set -u
+
+T=$(command -v tmux || echo /usr/bin/tmux)
+CONF="${TMUX_CONF:-$HOME/tmux-config/tmux.conf}"
+
+DIM=$'\033[38;5;244m'
+FAINT=$'\033[38;5;239m'
+BOLD=$'\033[1m'
+GREEN=$'\033[38;5;108m'
+CYAN=$'\033[38;5;73m'
+YEL=$'\033[38;5;179m'
+R=$'\033[0m'
+
+# 键|说明|是否重点
+groups=()
+declare -A rows
+
+add() { rows["$1"]="$2|$3"; }
+
+add "Space"  "记一笔：+ 待办 / - 勾选 / ! 计划外完成 / 其他=流水" 1
+add "X"      "勾选 / 取消勾选 todo（fzf 多选，Tab 选多个）" 1
+add "L"      "浏览 / 搜索全部速记（fzf，右侧预览当天）" 1
+add "S"      "生成今日总结（一天可以生成多次）" 1
+add "B"      "在当前窗口左侧召唤 / 收起看板" 1
+add "e"      "nvim 编辑今天的 markdown" 0
+add "a"      "日志助手：临时起个 pi，把话变成记录" 0
+add "J"      "跳到日志窗口（没有就新建，并保证左边有看板）" 0
+add "M"      "生成本月月报" 0
+add "Y"      "yazi 弹窗" 0
+add "?"      "就是这一页" 0
+
+PANE_KEYS=(h j k l Tab Enter = - C-z)
+add "h/j/k/l" "切窗格（可连按，不用重复按前缀）" 0
+add "Tab"    "回到上一个窗口" 0
+add "Enter"  "在当前目录竖向拆分窗格" 0
+add "="      "主窗格收窄到 20%，聚焦右上" 0
+add "-"      "主窗格放宽到 80%，聚焦主窗格" 0
+add "C-z"    "当前窗格最大化 / 还原（不需要前缀）" 0
+
+add "v"      "插入最新一张剪贴板图片的路径" 0
+add "V"      "插入第 2 新的图片路径" 0
+add "y"      "fzf 挑一张未过期的图片" 0
+
+show_group() { # 标题 + 若干键
+	local title=$1; shift
+	printf '\n%s%s%s\n' "$FAINT" "$title" "$R"
+	local k
+	for k in "$@"; do
+		local v=${rows[$k]:-}
+		[ -z "$v" ] && continue
+		local desc=${v%|*} hot=${v##*|}
+		local color=$CYAN
+		[ "$hot" = "1" ] && color=$GREEN
+		printf '  %s%-7s%s %s\n' "$color" "$k" "$R" "$desc"
+	done
+}
+
+printf '%s  快捷键速查%s %s（前缀 Ctrl+b）%s\n' "$BOLD" "$R" "$DIM" "$R"
+
+show_group "日志 journal" Space X L S e a J M Y "?"
+show_group "窗格 pane" "h/j/k/l" Tab Enter = - "C-z"
+show_group "剪贴板 / 图片" v V y
+
+# ---- 漂移检查：清单里没有的自定义键 ----
+if [ -r "$CONF" ]; then
+	extra=$(awk '
+		/^[ \t]*bind(-key)?[ \t]/ {
+			table = ""
+			for (i = 1; i <= NF; i++) {
+				if ($i ~ /^bind(-key)?$/) continue
+				if ($i == "-T") { table = $(i + 1); i++; continue }
+				if ($i ~ /^-[a-zA-Z]$/) continue
+				if (table ~ /^copy-mode/) break
+				print $i
+				break
+			}
+		}' "$CONF" | sort -u | while read -r k; do
+		[ -n "${rows[$k]:-}" ] && continue
+		case " h j k l " in *" $k "*) continue ;; esac
+		printf '%s ' "$k"
+	done)
+	if [ -n "${extra// /}" ]; then
+		printf '\n%s  配置里有、这页还没收录%s\n  %s%s%s\n' \
+			"$FAINT" "$R" "$YEL" "${extra% }" "$R"
+	fi
+fi
+
+printf '\n%s  按任意键关闭%s' "$DIM" "$R"
+read -rsn1 _ || true
