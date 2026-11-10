@@ -87,6 +87,12 @@ expect Tab 'last-window'
 expect v   'clip-path 1'
 expect V   'clip-path 2'
 expect y   'clip-pick'
+# Y 必须是 new-window，不能用 display-popup：tmux 3.6a 里 popup 中的程序
+# 发 DECRQM `CSI ? 12 $ p` 会 fatalx 杀掉整个 server（tmux/tmux#4942）。
+expect Y   'new-window'
+if tmux -L "$socket" list-keys -T prefix Y 2>/dev/null | grep -q 'display-popup'; then
+	bad "prefix Y 又变回 display-popup 了（会炸 server，见 tmux.conf 末尾说明）"
+fi
 
 # ---------------------------------------------------------------- 5. 渲染宽度
 # 曾经踩过：tmux list-keys 有 1660 字符的长行，直接丢给分页器会折成几十行碎片，

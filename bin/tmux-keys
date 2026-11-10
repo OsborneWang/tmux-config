@@ -33,7 +33,7 @@ add "a"      "日志助手：临时起个 pi，把话变成记录" 0
 add "J"      "跳到日志窗口（没有就新建）" 0
 add "M"      "生成本月月报" 0
 add "W"      "生成本周周报" 0
-add "Y"      "yazi 弹窗" 0
+add "Y"      "yazi（新窗口，不是弹窗：popup 会炸 server）" 0
 add "?"      "就是这一页" 0
 
 PANE_KEYS=(h j k l Tab Enter = - C-z)
