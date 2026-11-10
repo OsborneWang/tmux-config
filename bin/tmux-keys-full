@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""tmux-keys 的「其余全部绑定」页：把一个塞满 1660 字符长行的 list-keys 输出
+排版成每行不超过终端宽度的表。
+
+tmux 的鼠标菜单绑定单行能到 1660 字符，直接丢给分页器会折成几十行碎片，
+看起来就像乱码 —— 这个脚本就是干这个的。
+
+    tmux list-keys | WIDTH=100 KNOWN="Space X ..." ./tmux-keys-full
+"""
+
+import os
+import re
+import sys
+import unicodedata
+
+width = int(os.environ.get("WIDTH", "120"))
+known = set(os.environ.get("KNOWN", "").split())
+
+def dw(s):
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
+
+def cut(s, w):
+    if dw(s) <= w:
+        return s
+    out, n = [], 0
+    for c in s:
+        cw = 2 if unicodedata.east_asian_width(c) in "WF" else 1
+        if n + cw > w - 1:
+            break
+        out.append(c)
+        n += cw
+    return "".join(out) + "…"
+
+def parse(line):
+    """bind-key [-r] [-T table] <key> <command...>"""
+    rest = line[len("bind-key"):].lstrip() if line.startswith("bind-key") else ""
+    table = "prefix"
+    while rest:
+        if rest.startswith("-T "):
+            rest = rest[3:].lstrip()
+            table, _, rest = rest.partition(" ")
+            rest = rest.lstrip()
+        elif rest[:2] in ("-r", "-n", "-N", "-b", "-d"):
+            rest = rest[2:].lstrip()
+        else:
+            break
+    if not rest:
+        return None
+    key, _, cmd = rest.partition(" ")
+    return table, key, cmd.strip()
+
+rows = []
+for line in sys.stdin:
+    got = parse(line.rstrip("\n"))
+    if not got:
+        continue
+    table, key, cmd = got
+    if table not in ("prefix", "root"):
+        continue
+    if re.search(r"(Mouse|Click|Wheel)", key):
+        continue
+    if key in known:
+        continue
+    rows.append((table, key, cmd))
+
+rows.sort(key=lambda r: (r[0] != "prefix", len(r[1]), r[1]))
+head = [
+    "  其余全部绑定（上面没说明的），按前缀表 / root 表分组",
+    "  鼠标菜单和 copy-mode 的 162 条已省略：tmux list-keys -T copy-mode 可查",
+    "",
+]
+for line in head:
+    print(cut(line, width))
+for table, key, cmd in rows:
+    left = "%-5s %-10s " % (table, key)
+    print("  " + left + cut(cmd, max(10, width - 3 - dw(left))))
+print()
+print(cut("  共 %d 条（已省略上面已说明的、鼠标、copy-mode）" % len(rows), width))

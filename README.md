@@ -172,3 +172,11 @@ tmux source-file ~/.tmux.conf
 
 需要提醒的是：这份配置是围绕个人工作习惯调出来的（Ghostty/kitty + SSH + 中文注释），
 照搬未必舒服。fork 后建议先读 `tmux.conf` 里的注释再动手改 —— 里面的“为什么”比“是什么”更有参考价值。
+
+## 快捷键速查（prefix ?）
+
+`prefix ?` 弹一页速查：上面是常用键的人话说明，按 `f` 展开「其余全部绑定」。
+那一页由 `bin/tmux-keys` + `bin/tmux-keys-full` 生成：
+`tmux list-keys` 的原始输出里鼠标菜单有 1660 字符的长行，直接分页会折成几十行碎片
+（看起来像乱码），所以 `tmux-keys-full` 会过滤掉鼠标/copy-mode，并把每行按显示宽度
+硬截断。`check.sh` 第 5 组守着这个不变量。

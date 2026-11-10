@@ -21,7 +21,7 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; fail=1; }
 skip() { printf '  \033[33m-\033[0m %s\n' "$1"; }
 
 # ---------------------------------------------------------------- 1. 语法
-printf '[1/4] 脚本语法\n'
+printf '[1/5] 脚本语法\n'
 for f in "$repo_dir"/bin/* "$repo_dir"/install.sh "$repo_dir"/check.sh; do
 	[ -f "$f" ] || continue
 	name=$(basename "$f")
@@ -47,7 +47,7 @@ for f in "$repo_dir"/bin/* "$repo_dir"/install.sh "$repo_dir"/check.sh; do
 done
 
 # ---------------------------------------------------------------- 2. shellcheck
-printf '[2/4] shellcheck\n'
+printf '[2/5] shellcheck\n'
 if command -v shellcheck >/dev/null 2>&1; then
 	out=$(shellcheck -S warning -s sh "$repo_dir"/bin/clip-clean \
 		"$repo_dir"/bin/clip-path "$repo_dir"/bin/clip-pick "$repo_dir"/bin/clip-show 2>&1)
@@ -58,7 +58,7 @@ else
 fi
 
 # ---------------------------------------------------------------- 3. 配置解析
-printf '[3/4] tmux.conf 解析\n'
+printf '[3/5] tmux.conf 解析\n'
 tmux -L "$socket" kill-server 2>/dev/null
 if err=$(tmux -L "$socket" -f "$repo_dir/tmux.conf" new-session -d -x 100 -y 30 'sleep 5' 2>&1); then
 	pass "干净 server 加载无报错"
@@ -67,7 +67,7 @@ else
 fi
 
 # ---------------------------------------------------------------- 4. 关键绑定
-printf '[4/4] 关键绑定\n'
+printf '[4/5] 关键绑定\n'
 expect() {
 	local key="$1" want="$2" got
 	got=$(tmux -L "$socket" list-keys -T prefix 2>/dev/null | awk -v k="$key" \
@@ -87,6 +87,33 @@ expect Tab 'last-window'
 expect v   'clip-path 1'
 expect V   'clip-path 2'
 expect y   'clip-pick'
+
+# ---------------------------------------------------------------- 5. 渲染宽度
+# 曾经踩过：tmux list-keys 有 1660 字符的长行，直接丢给分页器会折成几十行碎片，
+# 看着像乱码。这里守住"任何一行都不超过给定宽度"。
+printf '\n[5/5] 速查表渲染宽度\n'
+if python3 -c 'import sys' 2>/dev/null; then
+	KNOWN="Space X L S B R e a J M W Y ? h j k l Tab Enter = - C-z v V y"
+	for w in 40 60 90 169; do
+		out=$(tmux list-keys 2>/dev/null | WIDTH=$w KNOWN="$KNOWN" "$repo_dir/bin/tmux-keys-full" 2>/dev/null)
+		wide=$(printf '%s\n' "$out" | python3 -c "
+import sys, unicodedata
+w = $w
+def dw(s): return sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1 for c in s)
+print(sum(1 for l in sys.stdin if dw(l.rstrip(chr(10))) > w))
+")
+		[ "${wide:-1}" = "0" ] && pass "宽度 $w：无超宽行" || bad "宽度 $w：有 $wide 行超宽"
+	done
+	cur=$("$repo_dir/bin/tmux-keys" </dev/null 2>/dev/null | python3 -c "
+import sys, re, unicodedata
+def dw(s): return sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1 for c in s)
+ls=[dw(re.sub(r'\x1b\[[0-9;]*m','',l.rstrip())) for l in sys.stdin]
+print(max(ls) if ls else 999)
+")
+	[ "${cur:-999}" -le 70 ] && pass "精选页最宽 ${cur} 列（≤70）" || bad "精选页最宽 ${cur} 列，超过 70"
+else
+	skip "没装 python3，跳过"
+fi
 
 tmux -L "$socket" kill-server 2>/dev/null
 rm -rf "$repo_dir"/bin/__pycache__

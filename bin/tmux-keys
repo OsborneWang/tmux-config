@@ -22,15 +22,15 @@ declare -A rows
 
 add() { rows["$1"]="$2|$3"; }
 
-add "Space"  "记一笔：+ 待办 / - 勾选 / ! 计划外完成 / 其他=流水" 1
+add "Space"  "记一笔（+ 待办 / - 勾选 / ! 计划外 / 其他=流水）" 1
 add "R"      "开工视图：上次没做完的 + 今天的现状" 1
-add "X"      "管理 todo：回车切换完成 · C-R 改名 · C-D 删除 · C-P 衍生待办" 1
+add "X"      "todo：回车切换 / C-R 改名 / C-D 删除 / C-P 衍生" 1
 add "L"      "浏览 / 搜索全部速记（fzf，右侧预览当天）" 1
 add "S"      "生成今日总结（一天可以生成多次）" 1
 add "B"      "在当前窗口左侧召唤 / 收起看板" 1
 add "e"      "nvim 编辑今天的 markdown" 0
 add "a"      "日志助手：临时起个 pi，把话变成记录" 0
-add "J"      "跳到日志窗口（没有就新建，并保证左边有看板）" 0
+add "J"      "跳到日志窗口（没有就新建）" 0
 add "M"      "生成本月月报" 0
 add "W"      "生成本周周报" 0
 add "Y"      "yazi 弹窗" 0
@@ -92,19 +92,21 @@ if [ -r "$CONF" ]; then
 	fi
 fi
 
-printf '\n  %s[f]%s %s完整列表（tmux list-keys）%s   %s[其他键]%s %s关闭%s' \
+printf '\n  %s[f]%s %s其余全部绑定（已排版）%s   %s[其他键]%s %s关闭%s' \
 	"$CYAN" "$R" "$DIM" "$R" "$CYAN" "$R" "$DIM" "$R"
 k=""
 read -rsn1 k || true
 
 case "${k:-}" in
 f | F)
-	PAGER_BIN=$(command -v less || echo /usr/bin/less)   # 别叫 LESS：那会覆盖 less 自己的选项变量
-	{
-		printf '%s  完整键位 —— tmux list-keys（含 tmux 出厂默认）%s\n' "$BOLD" "$R"
-		printf '%s  q 退出%s\n\n' "$DIM" "$R"
-		"$T" list-keys 2>/dev/null
-	} | "$PAGER_BIN" -R
+	# 完整列表：只留 prefix / root 两张表，剔掉鼠标菜单和 copy-mode，
+	# 每行按显示宽度硬截断（绝不折行——折行才是"乱码"的真凶）。
+	PAGER_BIN=$(command -v less || echo /usr/bin/less)
+	cols=$(tput cols 2>/dev/null || echo "${COLUMNS:-120}")
+	[ "${cols:-0}" -lt 40 ] 2>/dev/null && cols=40
+	known="Space X L S B R e a J M W Y ? h j k l Tab Enter = - C-z v V y"
+	SELF_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+	"$T" list-keys 2>/dev/null | WIDTH="$cols" KNOWN="$known" "$SELF_DIR/tmux-keys-full" | env LESS= LESSCHARSET=utf-8 "$PAGER_BIN" -RS
 	;;
 esac
 printf '\n'
